@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ven-RadioList</title>
+    <style>
+        .radio-list-container {
+            position: absolute;
+            top: 10%;
+            left: 0;
+            width: 180px; 
+            text-align: left;
+            padding: 8px; 
+            font-family: Arial, sans-serif;
+            font-size: 0.8vw; 
+            color: #b0b0b0;
+            font-weight: bold;
+            background: linear-gradient(to right, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0)); 
+            border-radius: 8px;
+            visibility: hidden; 
+            opacity: 0; 
+            transition: visibility 0s, opacity 0.5s ease; 
+        }
+
+        .show {
+            visibility: visible; 
+            opacity: 1; 
+            animation: slideIn 0.5s forwards; 
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 5px;
+        }
+
+        .header .title {
+            font-size: 0.8vw; 
+            font-weight: bold;
+            color: #d1d1d1; 
+        }
+
+        .count {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2); 
+            border-radius: 12px;
+            padding: 4px 8px;
+            color: black;
+            font-weight: bold;
+        }
+
+        .member {
+            margin-bottom: 5px;
+            padding: 8px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            color: #b0b0b0;
+            position: relative;
+            transition: background 0.3s ease;
+        }
+
+        .member .member-name {
+            flex-grow: 1;
+            color: #b0b0b0;
+            cursor: pointer;
+        }
+
+        .microphone {
+            margin-left: 8px;
+            width: 12px; 
+            height: 12px;
+            background-color: gray;
+            border-radius: 50%;
+            transition: background-color 0.3s ease;
+        }
+
+        .talking .microphone {
+            background-color: orange; 
+        }
+
+        .talking {
+            background: rgba(255, 165, 0, 0.2); 
+            color: #ffffff;
+        }
+
+        .talking .member-name {
+            color: #ffffff;
+        }
+
+        @keyframes slideOut {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(-100%);
+            }
+        }
+
+        .info-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        .info-modal .close-btn {
+            background: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+    <script type="text/javascript">
+        let radioMembers = {};
+
+        window.addEventListener("message", function(event) {
+            var item = event.data;
+
+            if (item.radioId != null) {
+                let radioListElem = document.getElementById("radio-list");
+                radioListElem.classList.add("show"); 
+
+                if (!radioListElem.firstChild) {
+                    let listHeader = document.createElement("div");
+                    listHeader.id = "radio-list-header";
+                    listHeader.classList.add("header");
+                    listHeader.innerHTML = `
+                        <span class="title">Aktif Üyeler</span>
+                        <span class="count" id="radio-count">0</span>`;
+                    radioListElem.appendChild(listHeader);
+                }
+
+                if (item.radioName != null) {
+                    let listItem = document.createElement("div");
+                    listItem.classList.add("member");
+                    listItem.innerHTML = `<span class="member-name">${item.radioName}</span>
+                                          <span class="microphone"></span>`;
+                    radioListElem.appendChild(listItem);
+                    radioMembers[item.radioId] = item.radioName;
+                } else if (item.radioTalking != null) {
+                    let listItem = Array.from(radioListElem.querySelectorAll('.member')).find(member => member.querySelector('.member-name').innerText === radioMembers[item.radioId]);
+                    if (item.radioTalking) {
+                        listItem.classList.add("talking");
+                    } else {
+                        listItem.classList.remove("talking");
+                    }
+                } else {
+                    let listItem = Array.from(radioListElem.querySelectorAll('.member')).find(member => member.querySelector('.member-name').innerText === radioMembers[item.radioId]);
+                    if (listItem) {
+                        listItem.style.animation = 'slideOut 0.5s forwards';
+                        setTimeout(() => {
+                            radioListElem.removeChild(listItem);
+                        }, 500); 
+                    }
+                    delete radioMembers[item.radioId];
+                }
+
+                document.getElementById("radio-count").textContent = Object.keys(radioMembers).length;
+            }
+
+            if (item.clearRadioList) {
+                let radioListElem = document.getElementById("radio-list");
+                while (radioListElem.firstChild) {
+                    radioListElem.removeChild(radioListElem.firstChild);
+                }
+                radioMembers = {};
+                radioListElem.classList.remove("show"); 
+            }
+
+            if (item.changeVisibility) {
+                let radioListElem = document.getElementById("radio-list");
+                radioListElem.classList.toggle("show", item.visible); 
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="radio-list-container" id="radio-list"></div>
+    <div class="info-modal" id="info-modal"></div>
+</body>
+</html>
